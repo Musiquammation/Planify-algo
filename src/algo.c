@@ -6,6 +6,7 @@
 
 #include "Array.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,48 @@ int compareOptions(const void* a, const void* b) {
 	if (a < b) return -1;
 	if (a > b) return 1;
 	return 0;
+}
+
+int* produceSimilarities(void) {
+	const int len = shared.tasks_len;
+	int* const arr = malloc((len * len) * sizeof(int));
+	int* ptr = arr;
+	const Slot* const firstSlot = shared.slots;
+	const Slot* const lastSlot = firstSlot + shared.slots_len;
+
+	for (int j = 0; j < len; j++) {
+		int jlove = shared.tasks[j].type;
+		for (int i = 0; i < len; i++) {
+			int ilove = shared.tasks[i].type;
+			
+			float sum = 0;
+			int duration = 0;
+			for (const Slot* s = firstSlot; s < lastSlot; s++) {
+				int d = s->duration;
+				duration += d;
+
+				love_t li = s->loveTable[jlove];
+				love_t lj = s->loveTable[ilove];
+				if (li > 250) {li = 0;}
+				if (lj > 250) {lj = 0;}
+
+				float diff = 0.004f * ((li - lj) * d);
+				if (diff < 0)
+					diff = -diff;
+
+				diff = powf(diff, SIMILARITIES_ALPHA);
+				sum += diff;
+			}
+
+
+			*ptr = (int)(sum / duration * SIMILARITIES_RANGE);
+			printf("(%d,%d)-> %f\n", j, i, sum  / duration);
+
+			ptr++;
+		}
+	}
+
+	return arr;
 }
 
 Layer* newLayers(void) {
@@ -255,6 +298,7 @@ int pushLayers(int* usages, const int* layerDurations) {
 
 
 
+
 	// No conflicts
 	if (conflictTasks.length == 0) {
 		free(easyTaken);
@@ -422,6 +466,7 @@ int* runAlgo(void) {
 	data.useBestCombin = malloc(shared.tasks_len);
 	data.useCombin = malloc(shared.tasks_len);
 	data.useCombinPattern = malloc(shared.tasks_len);
+	data.similarities = produceSimilarities();
 	data.layers = newLayers();
 	data.forbiddenList = calloc(shared.tasks_len, 1);
 
@@ -442,6 +487,7 @@ int* runAlgo(void) {
 	free(data.useCombinPattern);
 	free(data.useCombin);
 	free(data.useBestCombin);
+	free(data.similarities);
 	freeLayers(data.layers);
 	free(data.units);
 	free(data.forbiddenList);

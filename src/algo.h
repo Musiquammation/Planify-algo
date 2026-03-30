@@ -7,7 +7,11 @@
 enum {
 	CONFLICT = -1,
 	AVAILABLE = -2,
+
+	SIMILARITIES_RANGE = (int)2000000000
 };
+
+#define SIMILARITIES_ALPHA 1.2f
 
 typedef struct {
 	const Task* task;
@@ -36,7 +40,9 @@ typedef struct {
 	char* useCombinPattern;
 	char* useBestCombin;
 	char* forbiddenList;
+	int* similarities;
 } data_t;
+
 
 
 extern data_t data;

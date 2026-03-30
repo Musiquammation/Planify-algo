@@ -1,7 +1,7 @@
 # Compiler and flags
 CC = gcc
 CFLAGS = -Werror -g -fsanitize=address -MMD -MP
-LDFLAGS = -fsanitize=address
+LDFLAGS = -fsanitize=address -lm
 
 # Dossiers
 SRC_DIR = src
