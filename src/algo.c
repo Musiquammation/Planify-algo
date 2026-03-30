@@ -128,9 +128,6 @@ void fillCombination(
 	int subScore = layerScore;
 	
 	while (true) {
-		if (*shared.interrupt)
-			goto exit;
-
 		fillCombination(subScore, subDuration, layer);
 
 		// Generate next combination
@@ -175,8 +172,10 @@ void fillCombination(
 
 
 
-
+int layers = 0;
 int pushLayers(int* usages, const int* layerDurations) {
+	layers++;
+
 	// Fill completion base
 	int scoreBase = 0;
 	Array* conflictLayers = malloc(shared.tasks_len * sizeof(Array)); // types: int to layer
@@ -190,7 +189,7 @@ int pushLayers(int* usages, const int* layerDurations) {
 
 
 
-	int* subLayerDurations = malloc(shared.tasks_len * sizeof(int));
+	int* subLayerDurations = malloc(shared.slots_len * sizeof(int));
 	int* easyTaken = malloc(shared.tasks_len * sizeof(int));
 	for (int i = 0; i < shared.tasks_len; i++) {
 		easyTaken[i] = -1;
@@ -267,7 +266,7 @@ int pushLayers(int* usages, const int* layerDurations) {
 	// Add conflicts to forbidden list
 	Array_loop(int, conflictTasks, t) {
 		data.forbiddenList[*t] = 1;
-		printf("%d[%d] ", *t, conflictLayers[*t].length);
+		// printf("%d[%d] ", *t, conflictLayers[*t].length);
 	}
 
 
@@ -308,9 +307,6 @@ int pushLayers(int* usages, const int* layerDurations) {
 
 	
 	while (true) {
-		if (*shared.interrupt)
-			goto exit;
-			
 		memcpy(givenSubUsages, subUsages, size);
 
 
@@ -449,6 +445,8 @@ int* runAlgo(void) {
 	freeLayers(data.layers);
 	free(data.units);
 	free(data.forbiddenList);
+
+	printf("layers: %d\n", layers);
 
 	return ownerListArg;
 }
