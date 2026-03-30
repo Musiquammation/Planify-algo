@@ -61,8 +61,6 @@ int* produceSimilarities(void) {
 
 
 			*ptr = (int)(sum / duration * SIMILARITIES_RANGE);
-			printf("(%d,%d)-> %f\n", j, i, sum  / duration);
-
 			ptr++;
 		}
 	}
