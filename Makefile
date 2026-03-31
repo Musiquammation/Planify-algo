@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Werror -g -fsanitize=address -MMD -MP
+CFLAGS = -Werror -g -fsanitize=address -MMD -MP -DDEBUG_PLANIFY_ALGO=3
 LDFLAGS = -fsanitize=address -lm
 
 # Dossiers

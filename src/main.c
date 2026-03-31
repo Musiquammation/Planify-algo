@@ -16,14 +16,15 @@ int main() {
 	love_t info_l[] =  {50, 200};
 
 	Slot slots[] = {
-		{math_l, 6,  0}, // Lu mat {00-02}
-		{math_l, 6,  4}, // Lu ap  {04-06}
+		{math_l, 2,  0}, // Lu mat {00-02}
+		{math_l, 2,  4}, // Lu ap  {04-06}
 
-		{info_l, 2, 10}, // Ma mat {10-12}
+		{math_l, 2, 10}, // Ma mat {10-12}
 		{info_l, 2, 14}, // Ma ap  {14-16}
 
-		// {math_l, 6, 20}, // Me mat {20-22}
-		// {math_l, 2, 24}, // Me ap  {24-26}
+		{info_l, 2, 20}, // Me mat {20-22}
+		{info_l, 2, 24}, // Me ap  {24-26}
+
 	};
 
 	Task tasks[] = {

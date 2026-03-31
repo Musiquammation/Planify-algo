@@ -28,16 +28,27 @@ int compareOptions(const void* a, const void* b) {
 	return 0;
 }
 
-int* produceSimilarities(void) {
+int** produceSimilarities(void) {
 	const int len = shared.tasks_len;
-	int* const arr = malloc((len * len) * sizeof(int));
-	int* ptr = arr;
+	int** const arr = malloc(len * sizeof(int*));
+	int** linePtr = arr;
 	const Slot* const firstSlot = shared.slots;
 	const Slot* const lastSlot = firstSlot + shared.slots_len;
 
 	for (int j = 0; j < len; j++) {
 		int jlove = shared.tasks[j].type;
-		for (int i = 0; i < len; i++) {
+		int jdur = shared.tasks[j].duration;
+		int* ptr = malloc((len+1-j) * sizeof(int));
+		*linePtr = ptr;
+		linePtr++;
+		printf("line:");
+
+		for (int i = j+1; i < len; i++) {
+			int idur = shared.tasks[i].duration;
+			if (idur != jdur) {
+				continue;
+			}
+
 			int ilove = shared.tasks[i].type;
 			
 			float sum = 0;
@@ -60,11 +71,19 @@ int* produceSimilarities(void) {
 			}
 
 
-			*ptr = (int)(sum / duration * SIMILARITIES_RANGE);
-			ptr++;
+			if (sum < SIMILARITIES_LIMIT * duration) {
+				*ptr = i;
+				ptr++;
+				printf(" %d(%.2f)", i, sum/duration);
+			}
+
 		}
+	
+		*ptr = -1;
+		printf("\n");
 	}
 
+	printf("ok\n");
 	return arr;
 }
 
@@ -169,28 +188,30 @@ void fillCombination(
 	int subScore = layerScore;
 	
 	while (true) {
+		/// TODO: Check if combination is skippable
 		fillCombination(subScore, subDuration, layer);
+
+
+		skipCombination:
 
 		// Generate next combination
 		int carry = 1;
-		for (int i = length - 1; i >= 0; i--) {
-			if (carry) {
-				int task = positions[i];
-				char c = data.useCombin[task];
+		for (int i = length - 1; i >= 0 && carry; i--) {
+			int task = positions[i];
+			char c = data.useCombin[task];
 
-				if (c == -1) {
-					// Add task
-					data.useCombin[task] = 1;
-					subDuration -= data.units[task].duration;
-					subScore += layer->scores[task];
-					carry = 1;
-				} else if (c == 1) {
-					// Remove task
-					data.useCombin[task] = -1;
-					subDuration += data.units[task].duration;
-					subScore -= layer->scores[task];
-					carry = 0;
-				}
+			if (c == -1) {
+				// Add task
+				data.useCombin[task] = 1;
+				subDuration -= data.units[task].duration;
+				subScore += layer->scores[task];
+				carry = 1;
+			} else if (c == 1) {
+				// Remove task
+				data.useCombin[task] = -1;
+				subDuration += data.units[task].duration;
+				subScore -= layer->scores[task];
+				carry = 0;
 			}
 		}
 
@@ -212,10 +233,14 @@ void fillCombination(
 
 
 
+#ifdef DEBUG_PLANIFY_ALGO
+int countedLayers = 0;
+#endif
 
-int layers = 0;
 int pushLayers(int* usages, const int* layerDurations) {
-	layers++;
+	#ifdef DEBUG_PLANIFY_ALGO
+	countedLayers++;
+	#endif
 
 	// Fill completion base
 	int scoreBase = 0;
@@ -228,6 +253,16 @@ int pushLayers(int* usages, const int* layerDurations) {
 		data.useCombinPattern[i] = usages[i] == AVAILABLE ? 0 : -9;
 	}
 
+	#ifdef DEBUG_PLANIFY_ALGO
+	printf("usages: ");
+	for (int i = 0; i < shared.tasks_len; i++) {
+		printf("%2d ", usages[i]);
+	}
+	printf("\n");
+	#endif
+
+
+	
 
 
 	int* subLayerDurations = malloc(shared.slots_len * sizeof(int));
@@ -239,6 +274,7 @@ int pushLayers(int* usages, const int* layerDurations) {
 	
 	for (int layerIndex = 0; layerIndex < shared.slots_len; layerIndex++) {
 		Layer* layer = &data.layers[layerIndex];
+
 		// Fill taken units and usageList
 		data.bestCombinScore = -1;
 		data.currentOptionCount = data.layers[layerIndex].optionCount;
@@ -287,8 +323,6 @@ int pushLayers(int* usages, const int* layerDurations) {
 			if (leftDuration == 0) {
 				break; // end
 			}
-
-			
 		}
 
 		subLayerDurations[layerIndex] = realLeftDuration;
@@ -345,27 +379,25 @@ int pushLayers(int* usages, const int* layerDurations) {
 	int* const givenSubUsages = malloc(size);
 
 	
-	
-
-	
+		
 	while (true) {
-		memcpy(givenSubUsages, subUsages, size);
-
-
-		int addScore = pushLayers(givenSubUsages, subLayerDurations);
-		int s = scoreBase + addScore;
-
-		if (s > bestScore) {
-			bestScore = s;
-			memcpy(bestUsages, givenSubUsages, size);
+		// Call sub pushLayer
+		{
+			memcpy(givenSubUsages, subUsages, size);
+			int addScore = pushLayers(givenSubUsages, subLayerDurations);
+			int s = scoreBase + addScore;
+	
+			if (s > bestScore) {
+				bestScore = s;
+				memcpy(bestUsages, givenSubUsages, size);
+			}
 		}
 
-
-
-
-
+		int i;
+		
 		// Move state
-		int i = conflictTasks.length - 1; 
+		moveState:
+		i = conflictTasks.length - 1;
 		while (true) {
 			int s = states[i];
 			int t = *Array_get(int, conflictTasks, i);
@@ -383,7 +415,7 @@ int pushLayers(int* usages, const int* layerDurations) {
 			subLayerDurations[l] += duration;
 			scoreBase -= data.layers[l].scores[t];
 			
-			s++;
+			s++; // move task to the next slot
 			if (s == conflictLayers[t].length) {
 				// Ghost task
 				subUsages[t] = -2;
@@ -393,7 +425,6 @@ int pushLayers(int* usages, const int* layerDurations) {
 
 			
 			// Add task
-			
 			addTask:
 			l = *Array_get(int, conflictLayers[t], s);
 
@@ -412,12 +443,30 @@ int pushLayers(int* usages, const int* layerDurations) {
 				willFinish = true;
 				goto exit;
 			}
-
 		}
+
+
+		// Check if equivalent solution has already been tested
+		for (int j = 0; j < conflictTasks.length; j++) {
+			int value = subUsages[j];
+			// printf("v %d\n", value);
+			if (value <= 0)
+				continue;
+
+			for (int* eptr = data.similarities[j]; true; eptr++) {
+				int idx = *eptr;
+				if (idx == -1)
+					break;
+
+				if (subUsages[idx] < value) {
+					goto moveState; // swap is possible
+				}
+			}
+		}
+
 	}
 
 	exit:
-
 
 
 
@@ -461,6 +510,7 @@ int* runAlgo(void) {
 		u->level = t->level;
 	}
 
+	data.similaritySensibility = 10;
 	data.useBestCombin = malloc(shared.tasks_len);
 	data.useCombin = malloc(shared.tasks_len);
 	data.useCombinPattern = malloc(shared.tasks_len);
@@ -478,6 +528,8 @@ int* runAlgo(void) {
 		layerDurations[i] = shared.slots[i].duration;
 	}
 
+
+	
 	int finalScore = pushLayers(ownerListArg, layerDurations);
 
 	
@@ -485,12 +537,20 @@ int* runAlgo(void) {
 	free(data.useCombinPattern);
 	free(data.useCombin);
 	free(data.useBestCombin);
+
+	for (int i = 0; i < shared.tasks_len; i++) {
+		free(data.similarities[i]);
+	}
+
+
 	free(data.similarities);
 	freeLayers(data.layers);
 	free(data.units);
 	free(data.forbiddenList);
 
-	printf("layers: %d\n", layers);
+	#ifdef DEBUG_PLANIFY_ALGO
+	printf("layers: %d\n", countedLayers);
+	#endif
 
 	return ownerListArg;
 }
